@@ -1,5 +1,5 @@
 import type { Instrument } from '../audio/pianoSynth';
-import { activeNotes, type Song } from '../core/song/types';
+import { activeNotes, type Song, type SongNote } from '../core/song/types';
 import { NoteScheduler } from '../core/transport/scheduler';
 import { Transport, type Clock, type LoopRange, type TransportState } from '../core/transport/transport';
 
@@ -9,8 +9,13 @@ const TICK_MS = 25;
 
 const performanceClock: Clock = { now: () => performance.now() / 1000 };
 
+/** Por qué ha cambiado la posición de golpe: lo usa la práctica para volver a dejar notas pendientes. */
+export type JumpReason = 'load' | 'seek' | 'loop';
+
 export interface PlaybackSnapshot {
   state: TransportState;
+  /** Detenida en una nota esperando a que la toques (modo espera). */
+  holding: boolean;
   speed: number;
   loop: LoopRange | null;
   /** Cambia cada vez que se carga una canción o se salta (para que la UI se entere). */
@@ -23,8 +28,19 @@ export class PlaybackEngine {
   private scheduler: NoteScheduler | null = null;
   private timer: ReturnType<typeof setInterval> | null = null;
   private listeners = new Set<() => void>();
-  private snapshot: PlaybackSnapshot = { state: 'stopped', speed: 1, loop: null, revision: 0 };
+  private snapshot: PlaybackSnapshot = {
+    state: 'stopped',
+    holding: false,
+    speed: 1,
+    loop: null,
+    revision: 0,
+  };
   private song: Song | null = null;
+  /** Qué notas toca la app (en práctica, solo las de la otra mano). */
+  private playFilter: (n: SongNote) => boolean = () => true;
+  private tickListeners = new Set<(time: number) => void>();
+  private jumpListeners = new Set<(time: number, reason: JumpReason) => void>();
+  private wasHolding = false;
 
   constructor(
     private readonly instrument: Instrument,
@@ -39,6 +55,55 @@ export class PlaybackEngine {
     return this.song;
   }
 
+  get speed(): number {
+    return this.transport?.speed ?? 1;
+  }
+
+  get playing(): boolean {
+    return this.transport?.state === 'playing';
+  }
+
+  /**
+   * Segundo de canción que correspondía a un instante pasado (`performance.now()` en ms).
+   * Sirve para saber cuándo se tocó una nota que llega con algo de retraso.
+   */
+  timeAt(perfMs: number): number {
+    const tr = this.transport;
+    if (!tr) return 0;
+    if (tr.state !== 'playing' || tr.holding) return tr.time;
+    const ago = (this.clock.now() * 1000 - perfMs) / 1000;
+    return tr.time - Math.max(0, ago) * tr.speed;
+  }
+
+  /** Elige qué notas toca la app. Se vuelve a programar desde la posición actual. */
+  setPlayFilter(filter: (n: SongNote) => boolean): void {
+    this.playFilter = filter;
+    this.instrument.releaseAll();
+    this.rebuildScheduler();
+  }
+
+  /** Modo espera: la canción no pasa de este segundo hasta que se mueva el límite. */
+  setLimit(limit: number): void {
+    this.transport?.setLimit(limit);
+    const holding = this.transport?.holding ?? false;
+    if (holding !== this.wasHolding) {
+      this.wasHolding = holding;
+      this.emit();
+    }
+  }
+
+  /** Se llama en cada paso del reloj interno (~40 veces por segundo) mientras suena. */
+  onTick(listener: (time: number) => void): () => void {
+    this.tickListeners.add(listener);
+    return () => this.tickListeners.delete(listener);
+  }
+
+  /** Se llama al cargar una canción, saltar a otra posición o repetir el tramo. */
+  onJump(listener: (time: number, reason: JumpReason) => void): () => void {
+    this.jumpListeners.add(listener);
+    return () => this.jumpListeners.delete(listener);
+  }
+
   /** Carga una canción nueva desde el principio. */
   load(song: Song): void {
     const speed = this.transport?.speed ?? 1;
@@ -51,6 +116,7 @@ export class PlaybackEngine {
     );
     this.transport.setSpeed(speed);
     this.rebuildScheduler();
+    this.jumped('load');
     this.emit();
   }
 
@@ -95,6 +161,7 @@ export class PlaybackEngine {
     this.transport.seek(time);
     this.instrument.releaseAll();
     this.scheduler?.reset(this.transport.time);
+    this.jumped('seek');
     this.emit();
   }
 
@@ -117,7 +184,7 @@ export class PlaybackEngine {
 
   private rebuildScheduler(): void {
     if (!this.song || !this.transport) return;
-    this.scheduler = new NoteScheduler(activeNotes(this.song), this.instrument);
+    this.scheduler = new NoteScheduler(activeNotes(this.song).filter(this.playFilter), this.instrument);
     this.scheduler.reset(this.transport.time);
   }
 
@@ -136,19 +203,33 @@ export class PlaybackEngine {
       // Desde el inicio del tramo, no desde la posición actual: si no, se pierden las notas
       // que caen justo en el inicio (el salto siempre llega unos milisegundos tarde).
       this.scheduler?.reset(tr.loop?.start ?? tr.time);
+      this.jumped('loop');
       this.emit();
     } else if (result === 'ended') {
       this.halt();
       this.emit();
       return;
     }
-    this.scheduler?.tick(tr.time, tr.speed, tr.loop?.end);
+    this.tickListeners.forEach((l) => l(tr.time));
+    if (tr.holding !== this.wasHolding) {
+      this.wasHolding = tr.holding;
+      this.emit();
+    }
+    // Lo que empieza en el límite (junto a la nota que esperamos) o después aún no suena: sonará
+    // a la vez que la toques.
+    this.scheduler?.tick(tr.time, tr.speed, Math.min(tr.loop?.end ?? Infinity, tr.limit - 1e-4));
   };
+
+  private jumped(reason: JumpReason): void {
+    const t = this.transport?.time ?? 0;
+    this.jumpListeners.forEach((l) => l(t, reason));
+  }
 
   private emit(): void {
     const tr = this.transport;
     this.snapshot = {
       state: tr?.state ?? 'stopped',
+      holding: tr?.holding ?? false,
       speed: tr?.speed ?? 1,
       loop: tr?.loop ?? null,
       revision: this.snapshot.revision + 1,

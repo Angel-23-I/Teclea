@@ -39,6 +39,8 @@ src/
   render/       notas que caen sobre el teclado (PixiJS / WebGL) y su geometría
   audio/        sonido de piano (Tone.js)
   playback/     motor que une transporte, programador y sonido
+  core/practice/ sesión de práctica: modos Espera y Ritmo, manos, aciertos, fallos y puntuación
+  practice/     controlador que une la práctica con las entradas, el motor y el detector
   state/        biblioteca de canciones (Zustand)
   input/        entradas de notas: audio del PSR-E283 (cable o micrófono), teclado del PC,
                 ratón o táctil y MIDI (Web MIDI), unidas en un centro común
@@ -47,6 +49,14 @@ src/
   ui/           componentes de interfaz
 src-tauri/      envoltorio de escritorio (Rust)
 ```
+
+## Practicar
+
+- **Espera**: la canción se para en cada nota hasta que la tocas. Importa el orden, no el ritmo.
+- **Ritmo**: la canción sigue; cada nota se puntúa (Perfecto < 50 ms, Bien < 100 ms, margen de ±200 ms).
+- **Escuchar**: la app lo toca todo.
+- Elige qué mano practicas: la otra la toca la app y sus notas se ven tenues. Al terminar verás la
+  precisión, las estrellas y si has batido tu marca.
 
 ## Escuchar el PSR-E283 por audio
 

@@ -70,3 +70,49 @@ describe('PlaybackEngine', () => {
     expect(engine.getSnapshot().state).toBe('playing');
   });
 });
+
+describe('PlaybackEngine en modo espera', () => {
+  let now = 0;
+  const clock = { now: () => now };
+  beforeEach(() => {
+    vi.useFakeTimers();
+    now = 0;
+  });
+  afterEach(() => vi.useRealTimers());
+  const advance = (sec: number) => {
+    for (let i = 0; i < sec * 40; i++) {
+      now += 0.025;
+      vi.advanceTimersByTime(25);
+    }
+  };
+
+  it('toca solo la otra mano, se detiene en el límite y no adelanta lo que va con la nota esperada', async () => {
+    const inst = new FakeInstrument();
+    const engine = new PlaybackEngine(inst, clock);
+    const song = BUILTIN_SONGS[0]!; // escala a dos manos
+    engine.load(song);
+    engine.setPlayFilter((n) => n.hand === 'left');
+    engine.setLimit(0); // la primera nota de la derecha empieza en 0
+    await engine.play();
+    advance(3);
+    expect(engine.time).toBe(0);
+    expect(engine.getSnapshot().holding).toBe(true);
+    expect(inst.played).toEqual([]); // el Do3 de la izquierda espera junto al Do4
+    engine.setLimit(Infinity);
+    advance(0.1);
+    expect(inst.played.map((n) => n.pitch)).toEqual([48]);
+    expect(inst.played.every((n) => n.hand === 'left')).toBe(true);
+  });
+
+  it('avisa de los saltos y calcula el instante de una nota que llegó con retraso', async () => {
+    const engine = new PlaybackEngine(new FakeInstrument(), clock);
+    const jumps: string[] = [];
+    engine.onJump((t, reason) => jumps.push(`${reason}@${t.toFixed(1)}`));
+    engine.load(BUILTIN_SONGS[0]!);
+    engine.seek(2);
+    await engine.play();
+    advance(1);
+    expect(engine.timeAt(now * 1000 - 200)).toBeCloseTo(engine.time - 0.2);
+    expect(jumps).toEqual([`load@${(-LEAD_IN).toFixed(1)}`, 'seek@2.0']);
+  });
+});

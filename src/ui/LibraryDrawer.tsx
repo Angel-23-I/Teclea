@@ -2,6 +2,7 @@ import { useRef, useState, type DragEvent } from 'react';
 import { ACCEPTED_EXTENSIONS } from '../core/song/importSong';
 import type { Song } from '../core/song/types';
 import { useLibrary } from '../state/library';
+import { usePracticeSettings } from '../state/practice';
 import { formatTime, shiftedNotesMessage } from './format';
 import { useDialog } from './useDialog';
 
@@ -13,6 +14,13 @@ const SOURCE_LABEL: Record<Song['source'], string> = {
 
 export function LibraryDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { songs, currentId, select, importFile } = useLibrary();
+  const best = usePracticeSettings((p) => p.best);
+  const bestFor = (id: string) => {
+    let top: number | null = null;
+    for (const [key, value] of Object.entries(best))
+      if (key.startsWith(id + '|')) top = Math.max(top ?? 0, value);
+    return top;
+  };
   const [dragging, setDragging] = useState(false);
   const closeRef = useDialog(open, onClose);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -75,7 +83,10 @@ export function LibraryDrawer({ open, onClose }: { open: boolean; onClose: () =>
               <span className="truncate text-[12.5px] text-muted">
                 {song.composer ?? 'Autor desconocido'}
               </span>
-              <span className="text-right font-mono text-xs text-muted">{formatTime(song.duration)}</span>
+              <span className="text-right font-mono text-xs text-muted">
+                {bestFor(song.id) != null ? `Mejor: ${bestFor(song.id)} % · ` : ''}
+                {formatTime(song.duration)}
+              </span>
             </button>
           ))}
 
