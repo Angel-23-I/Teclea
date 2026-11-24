@@ -1,3 +1,5 @@
+// Sin esto PixiJS genera código con new Function, que la política de seguridad de la app bloquea.
+import 'pixi.js/unsafe-eval';
 import { Application, BitmapFont, BitmapText, Container, Graphics } from 'pixi.js';
 import { pitchName } from '../core/music/notes';
 import type { NoteStatus } from '../core/practice/session';

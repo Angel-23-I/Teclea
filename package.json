@@ -1,7 +1,7 @@
 {
   "name": "teclea",
   "private": true,
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "App personal para aprender a tocar la organeta Yamaha PSR-E283 con notas que caen.",
   "type": "module",
   "scripts": {

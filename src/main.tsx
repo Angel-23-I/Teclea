@@ -9,6 +9,18 @@ import { progressTracker } from './progress/tracker';
 import { useLibrary } from './state/library';
 import { useProgress } from './state/progress';
 
+// En la app de escritorio, que no parezca una página web: sin el menú del botón derecho del navegador
+// (salvo en los campos de texto) ni Ctrl+R / F5, que recargarían y cortarían lo que suena.
+if (import.meta.env.PROD && '__TAURI_INTERNALS__' in window) {
+  window.addEventListener('contextmenu', (e) => {
+    const t = e.target as HTMLElement | null;
+    if (!t?.closest('input, textarea')) e.preventDefault();
+  });
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'F5' || ((e.ctrlKey || e.metaKey) && (e.key === 'r' || e.key === 'R'))) e.preventDefault();
+  });
+}
+
 setupInputs();
 practice.start();
 progressTracker.start();
