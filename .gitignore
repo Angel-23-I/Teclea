@@ -6,3 +6,4 @@ src-tauri/target
 src-tauri/gen
 .vscode/*
 !.vscode/extensions.json
+.impeccable/hook.cache.json
