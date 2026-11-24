@@ -33,7 +33,12 @@ npm run tauri build  # instalador .msi / .exe (necesita Rust)
 ```
 src/
   core/music/   teoría de notas y del teclado de 61 teclas
-  core/song/    modelo de canción y ajuste de rango (más adelante: importadores MIDI y MusicXML)
+  core/song/    modelo de canción, importadores MIDI y MusicXML (.musicxml/.xml/.mxl),
+                ajuste al rango del teclado y canciones de ejemplo
+  core/transport/ reloj de reproducción (velocidad, saltos, bucle) y programador de notas
+  audio/        sonido de piano (Tone.js)
+  playback/     motor que une transporte, programador y sonido
+  state/        biblioteca de canciones (Zustand)
   input/        contrato común para audio, MIDI y teclado del PC
   ui/           componentes de interfaz
 src-tauri/      envoltorio de escritorio (Rust)

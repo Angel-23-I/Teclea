@@ -1,25 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { fitPitch, fitSongToRange } from './rangeFit';
-import type { Song, SongNote } from './types';
+import { fitNotesToRange, fitPitch } from './rangeFit';
+import type { SongNote } from './types';
 
 const note = (pitch: number, start: number): SongNote => ({
   pitch,
   start,
   duration: 0.5,
   hand: 'right',
+  track: 0,
   finger: null,
-});
-
-const song = (notes: SongNote[]): Song => ({
-  id: 't',
-  title: 'Prueba',
-  composer: null,
-  source: 'builtin',
-  notes,
-  measures: [0],
-  timeSignature: [4, 4],
-  tempo: [{ time: 0, bpm: 120 }],
-  duration: 4,
 });
 
 describe('fitPitch', () => {
@@ -40,11 +29,11 @@ describe('fitPitch', () => {
   });
 });
 
-describe('fitSongToRange', () => {
+describe('fitNotesToRange', () => {
   it('cuenta las notas movidas y elimina duplicados', () => {
-    const { song: fitted, shifted } = fitSongToRange(song([note(28, 0), note(40, 0), note(60, 1)]));
+    const { notes, shifted } = fitNotesToRange([note(28, 0), note(40, 0), note(60, 1)]);
     expect(shifted).toBe(1);
     // 28 (Mi1) pasa a 40 (Mi2), que ya existía en el mismo instante: queda una sola.
-    expect(fitted.notes.map((n) => n.pitch)).toEqual([40, 60]);
+    expect(notes.map((n) => n.pitch)).toEqual([40, 60]);
   });
 });

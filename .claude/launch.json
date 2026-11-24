@@ -1,4 +1,6 @@
 {
   "version": "0.0.1",
-  "configurations": [{ "name": "teclea-web", "runtimeExecutable": "npm", "runtimeArgs": ["run", "dev"], "port": 1420 }]
+  "configurations": [
+    { "name": "teclea-web", "runtimeExecutable": "npm", "runtimeArgs": ["run", "dev"], "port": 1420 }
+  ]
 }
