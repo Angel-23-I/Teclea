@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { initialBpm } from './core/song/types';
 import { engine } from './playback/usePlayback';
+import { practice } from './practice/controller';
 import { useCurrentSong } from './state/library';
 import { useInputSettings } from './state/inputSettings';
 import { InputDialog } from './ui/InputDialog';
@@ -8,6 +9,8 @@ import { useInputSummary } from './ui/useInputSummary';
 import { LibraryDrawer } from './ui/LibraryDrawer';
 import { FallingNotesView } from './ui/FallingNotesView';
 import { TrackPanel } from './ui/TrackPanel';
+import { PracticePanel } from './ui/PracticePanel';
+import { ResultsOverlay, WaitBadge } from './ui/PracticeOverlays';
 import { ViewPanel } from './ui/ViewPanel';
 import { LoopControl, SpeedControl, TransportBar } from './ui/TransportBar';
 import { formatTime, shiftedNotesMessage } from './ui/format';
@@ -24,6 +27,7 @@ export default function App() {
     if (loadedId.current === song.id) engine.update(song);
     else engine.load(song);
     loadedId.current = song.id;
+    practice.setSong(song);
   }, [song]);
 
   useEffect(() => {
@@ -95,7 +99,11 @@ export default function App() {
 
       <main className="grid min-h-0 grid-cols-1 gap-3.5 overflow-auto p-4 lg:grid-cols-[minmax(0,1fr)_320px]">
         <section className="grid min-h-[440px] grid-rows-[minmax(0,1fr)_auto] overflow-hidden rounded-[14px] border border-line bg-stage">
-          <FallingNotesView song={song} />
+          <div className="relative min-h-0">
+            <FallingNotesView song={song} />
+            <WaitBadge />
+            <ResultsOverlay onChooseSong={() => setLibraryOpen(true)} />
+          </div>
           <TransportBar song={song} />
         </section>
 
@@ -133,8 +141,9 @@ export default function App() {
               al principio
             </p>
           </div>
-          <TrackPanel song={song} />
+          <PracticePanel />
           <SpeedControl />
+          <TrackPanel song={song} />
           <ViewPanel />
           <LoopControl song={song} />
         </aside>

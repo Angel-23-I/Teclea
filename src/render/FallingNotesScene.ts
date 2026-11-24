@@ -1,6 +1,8 @@
 import { Application, BitmapFont, BitmapText, Container, Graphics } from 'pixi.js';
 import { pitchName } from '../core/music/notes';
+import type { NoteStatus } from '../core/practice/session';
 import type { Hand, SongNote } from '../core/song/types';
+import type { PracticeEffect } from '../practice/controller';
 import type { LoopRange } from '../core/transport/transport';
 import type { NoteLabels } from '../state/viewSettings';
 import {
@@ -30,6 +32,16 @@ export interface SceneInput {
   noteLabels: NoteLabels;
   showFingers: boolean;
   lookahead: number;
+  /** Hay práctica en marcha (no en modo escuchar): las notas de la otra mano se ven más tenues. */
+  practicing: boolean;
+  /** Estado de cada nota para la persona: pendiente, acertada, fallada o de la app. */
+  noteStatus: (n: SongNote) => NoteStatus;
+  /** Teclas que toca pulsar ya, con su mano (laten en el teclado). */
+  expectedKeys: ReadonlyMap<number, Hand>;
+  /** Juicio de cada tecla pulsada: verde acierto, rojo nota falsa. */
+  keyJudgments: ReadonlyMap<number, 'ok' | 'bad'>;
+  /** Efectos recientes (chispas y textos), en orden de llegada. */
+  effects: readonly PracticeEffect[];
 }
 
 const C = {
@@ -44,7 +56,30 @@ const C = {
   ink: 0x0a0e18,
   noteText: 0x1a140c,
   pressed: 0xf6d1a6,
+  ok: 0x62d892,
+  bad: 0xf2656f,
+  warn: 0xe5d36a,
 };
+const reducedMotion =
+  typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+interface Particle {
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  r: number;
+  life: number;
+  max: number;
+  color: number;
+}
+interface FloatingText {
+  text: string;
+  x: number;
+  y: number;
+  life: number;
+  color: number;
+}
 const handColor = (h: Hand) => (h === 'left' ? C.lh : C.rh);
 
 /** Mezcla un color con blanco (0 = igual, 1 = blanco). */
@@ -141,6 +176,13 @@ export class FallingNotesScene {
   private hitLine = new Graphics();
   private keyGlow = new Graphics();
   private keyboard = new Graphics();
+  private fx = new Graphics();
+  private fxText = new Container();
+  private fxTexts = new TextPool(this.fxText, LABEL_FONT);
+  private particles: Particle[] = [];
+  private floating: FloatingText[] = [];
+  private lastEffect = 0;
+  private lastFrame = performance.now();
   private staticText = new Container();
   private dynamicText = new Container();
   private keyText = new Container();
@@ -184,6 +226,8 @@ export class FallingNotesScene {
       this.keyboard,
       this.keyGlow,
       this.keyText,
+      this.fx,
+      this.fxText,
     );
     this.app.ticker.add(this.frame);
   }
@@ -218,7 +262,62 @@ export class FallingNotesScene {
     this.noteTexts.end();
     this.monoTexts.end();
     this.drawKeyboardState(input, m);
+    this.drawEffects(input, m);
   };
+
+  /** Chispas al acertar y textos ("Perfecto", "Fallo"…) que suben y se desvanecen. */
+  private drawEffects(input: SceneInput, m: StageMetrics): void {
+    const now = performance.now();
+    const dt = Math.min(0.05, (now - this.lastFrame) / 1000);
+    this.lastFrame = now;
+    for (const e of input.effects) {
+      if (e.id <= this.lastEffect) continue;
+      this.lastEffect = e.id;
+      if (now - e.at > 500) continue; // efectos viejos (p. ej. tras cambiar de pestaña)
+      const k = this.keys[e.pitch];
+      if (!k) continue;
+      const x = k.x + k.width / 2;
+      const color = e.kind === 'hit' ? (e.hand ? handColor(e.hand) : C.ok) : C.bad;
+      if (e.kind === 'hit' && !reducedMotion) {
+        for (let i = 0; i < 14; i++) {
+          const a = -Math.PI / 2 + (Math.random() - 0.5) * 1.7;
+          const v = 90 + Math.random() * 170;
+          this.particles.push({
+            x,
+            y: m.hitY - 2,
+            vx: Math.cos(a) * v,
+            vy: Math.sin(a) * v,
+            r: 1.5 + Math.random() * 2,
+            life: 0.55,
+            max: 0.55,
+            color,
+          });
+        }
+      }
+      if (e.text) {
+        const good = e.text === 'Perfecto' || e.text === 'Bien';
+        const textColor = good ? C.ok : e.text === 'Fallo' ? C.bad : C.warn;
+        this.floating.push({ text: e.text, x, y: m.hitY - 20, life: 0.8, color: textColor });
+      }
+    }
+    const g = this.fx.clear();
+    this.particles = this.particles.filter((p) => (p.life -= dt) > 0);
+    for (const p of this.particles) {
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+      p.vy += 380 * dt;
+      g.circle(p.x, p.y, p.r).fill({ color: p.color, alpha: p.life / p.max });
+    }
+    this.fxTexts.begin();
+    this.floating = this.floating.filter((f) => (f.life -= dt) > 0);
+    for (const f of this.floating) {
+      f.y -= 40 * dt;
+      const t = this.fxTexts.take(f.text, 13, f.color, Math.min(1, f.life / 0.4));
+      t.anchor.set(0.5, 1);
+      t.position.set(f.x, f.y);
+    }
+    this.fxTexts.end();
+  }
 
   /** Lo que solo cambia al redimensionar: carriles, líneas de octava, línea de impacto y teclas. */
   private drawStatic(input: SceneInput): void {
@@ -317,15 +416,23 @@ export class FallingNotesScene {
         if (!key || key.black !== black) continue;
         const r = noteRect(n, input.time, m, this.keys);
         if (!r) continue;
-        const base = handColor(n.hand);
-        const color = r.clipped ? lighten(base, 0.35) : base;
+        const status = input.practicing ? input.noteStatus(n) : 'pending';
+        // La otra mano (la toca la app) va tenue; acertadas en verde y falladas en rojo.
+        const auto = status === 'auto';
+        const base = status === 'hit' ? C.ok : status === 'miss' ? C.bad : handColor(n.hand);
+        const color = r.clipped && !auto ? lighten(base, 0.35) : base;
+        const alpha = auto ? 0.35 : status === 'miss' || status === 'skip' ? 0.5 : 1;
         const radius = Math.min(5, r.width / 3);
-        g.roundRect(r.x, r.y, r.width, r.height, radius).fill({ color });
-        if (r.height > 6) g.rect(r.x + 2, r.y + 1, r.width - 4, 1.5).fill({ color: 0xffffff, alpha: 0.35 });
-        if (black)
+        g.roundRect(r.x, r.y, r.width, r.height, radius).fill({ color, alpha });
+        if (auto) {
+          g.roundRect(r.x, r.y, r.width, r.height, radius).stroke({ color: base, width: 1, alpha: 0.85 });
+        } else if (r.height > 6) {
+          g.rect(r.x + 2, r.y + 1, r.width - 4, 1.5).fill({ color: 0xffffff, alpha: 0.35 });
+        }
+        if (black && !auto)
           g.roundRect(r.x, r.y, r.width, r.height, radius).stroke({ color: C.ink, width: 1, alpha: 0.6 });
 
-        if (r.width < 13) continue;
+        if (r.width < 13 || auto) continue;
         if (input.noteLabels !== 'none' && r.height >= 16) {
           const size = Math.max(8, Math.min(12, r.width * 0.42));
           const t = this.noteTexts.take(pitchName(n.pitch, input.noteLabels), size, C.noteText, 0.85);
@@ -346,8 +453,20 @@ export class FallingNotesScene {
 
   /** Teclado con las teclas iluminadas; solo se redibuja cuando cambian. */
   private drawKeyboardState(input: SceneInput, m: StageMetrics): void {
-    const key = [...input.litKeys].map(([p, h]) => p + h).join() + '|' + [...input.pressedKeys].join();
+    // Las teclas esperadas laten: mientras haya alguna, se redibuja a menudo.
+    const pulse = reducedMotion ? 0.55 : 0.4 + 0.3 * Math.sin(performance.now() / 120);
+    const parts = [
+      [...input.litKeys].map(([p, h]) => p + h).join(),
+      [...input.pressedKeys].map((p) => p + (input.keyJudgments.get(p) ?? '')).join(),
+      [...input.expectedKeys].map(([p, h]) => p + h).join(),
+      input.expectedKeys.size ? String(Math.round(pulse * 20)) : '',
+    ];
+    const key = parts.join('|');
     if (key === this.keyboardKey) return;
+    const pressedColor = (pitch: number) => {
+      const j = input.keyJudgments.get(pitch);
+      return j === 'ok' ? C.ok : j === 'bad' ? C.bad : C.pressed;
+    };
     this.keyboardKey = key;
     const g = this.keyboard.clear();
     const glow = this.keyGlow.clear();
@@ -359,8 +478,12 @@ export class FallingNotesScene {
       const lit = input.litKeys.get(k.pitch);
       const pressed = input.pressedKeys.has(k.pitch);
       g.roundRect(k.x + 0.5, y, k.width - 1, h - 2, 4).fill({
-        color: pressed ? C.pressed : lit ? lighten(handColor(lit), 0.15) : C.keyWhite,
+        color: pressed ? pressedColor(k.pitch) : lit ? lighten(handColor(lit), 0.15) : C.keyWhite,
       });
+      const expected = input.expectedKeys.get(k.pitch);
+      if (expected && !pressed) {
+        g.roundRect(k.x + 0.5, y, k.width - 1, h - 2, 4).fill({ color: handColor(expected), alpha: pulse });
+      }
       g.rect(k.x + 0.5, y, k.width - 1, 6).fill({ color: 0x000000, alpha: 0.18 });
       if (!lit && !pressed)
         g.rect(k.x + 0.5, y + h - 8, k.width - 1, 6).fill({ color: C.keyWhiteEdge, alpha: 0.5 });
@@ -370,8 +493,15 @@ export class FallingNotesScene {
       const lit = input.litKeys.get(k.pitch);
       const pressed = input.pressedKeys.has(k.pitch);
       g.roundRect(k.x, y - 1, k.width, bh, 3).fill({
-        color: pressed ? C.pressed : lit ? handColor(lit) : C.keyBlack,
+        color: pressed ? pressedColor(k.pitch) : lit ? handColor(lit) : C.keyBlack,
       });
+      const expected = input.expectedKeys.get(k.pitch);
+      if (expected && !pressed) {
+        g.roundRect(k.x + 1, y, k.width - 2, bh - 3, 3).fill({
+          color: handColor(expected),
+          alpha: pulse + 0.15,
+        });
+      }
       if (!lit && !pressed) g.rect(k.x + 2, y + bh - 9, k.width - 4, 6).fill({ color: C.keyBlackTop });
     }
     // Brillo sobre la línea encima de cada tecla que suena.

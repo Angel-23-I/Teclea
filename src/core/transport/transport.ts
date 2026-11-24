@@ -23,6 +23,8 @@ export class Transport {
   private _state: TransportState = 'stopped';
   private _speed = 1;
   private _loop: LoopRange | null = null;
+  /** Segundo que la canción no pasa mientras suena (modo espera). Infinity = sin límite. */
+  private _limit = Infinity;
 
   /**
    * @param startTime segundo de canción donde empieza (negativo = cuenta atrás antes de la primera nota)
@@ -51,7 +53,29 @@ export class Transport {
   /** Segundo actual de la canción. */
   get time(): number {
     if (this._state !== 'playing') return this.anchorSong;
-    return this.anchorSong + (this.clock.now() - this.anchorClock) * this._speed;
+    const raw = this.anchorSong + (this.clock.now() - this.anchorClock) * this._speed;
+    return Math.max(this.anchorSong, Math.min(raw, this._limit));
+  }
+
+  get limit(): number {
+    return this._limit;
+  }
+
+  /** Está sonando pero detenida en el límite (esperando a que toques). */
+  get holding(): boolean {
+    return this._state === 'playing' && this.time >= this._limit;
+  }
+
+  /**
+   * Pone el segundo que la canción no puede pasar. Al moverlo hacia delante, la canción sigue desde
+   * donde se había detenido, sin saltos.
+   */
+  setLimit(limit: number): void {
+    if (limit === this._limit) return;
+    const t = this.time;
+    this.anchorSong = t;
+    this.anchorClock = this.clock.now();
+    this._limit = limit;
   }
 
   get ended(): boolean {

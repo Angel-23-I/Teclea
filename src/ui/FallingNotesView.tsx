@@ -4,9 +4,11 @@ import { soundingAt } from '../core/transport/scheduler';
 import { pcKeyLabels } from '../input/pcKeyboard';
 import { inputHub, pointerInput } from '../input/setup';
 import { engine, piano } from '../playback/usePlayback';
+import { practice } from '../practice/controller';
 import { FallingNotesScene, type SceneInput } from '../render/FallingNotesScene';
 import { keyAt, keyboardLayout, stageMetrics } from '../render/layout';
 import { useInputSettings } from '../state/inputSettings';
+import { usePracticeSettings } from '../state/practice';
 import { useViewSettings } from '../state/viewSettings';
 
 declare global {
@@ -36,8 +38,12 @@ export function FallingNotesView({ song }: { song: Song }) {
     const getInput = (): SceneInput => {
       const { notes, measures } = inputRef.current;
       const time = engine.time;
+      const practicing = usePracticeSettings.getState().mode !== 'listen';
+      // Se iluminan las notas que toca la app; las tuyas no (eso sería darte la respuesta).
       const litKeys = new Map<number, Hand>();
-      for (const n of soundingAt(notes, time)) litKeys.set(n.pitch, n.hand);
+      for (const n of soundingAt(notes, time)) {
+        if (!practicing || practice.statusOf(n) === 'auto') litKeys.set(n.pitch, n.hand);
+      }
       const view = useViewSettings.getState();
       const inputs = useInputSettings.getState();
       return {
@@ -51,6 +57,11 @@ export function FallingNotesView({ song }: { song: Song }) {
         noteLabels: view.noteLabels,
         showFingers: view.showFingers,
         lookahead: view.lookahead,
+        practicing,
+        noteStatus: (n) => practice.statusOf(n),
+        expectedKeys: engine.playing ? practice.expectedKeys(time) : new Map(),
+        keyJudgments: practice.keyJudgments,
+        effects: practice.effects,
       };
     };
     const scene = new FallingNotesScene(getInput);

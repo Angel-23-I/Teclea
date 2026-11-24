@@ -77,6 +77,38 @@ describe('Transport', () => {
   });
 });
 
+describe('Transport con límite (modo espera)', () => {
+  it('se detiene en el límite y sigue desde ahí al moverlo, sin saltar', () => {
+    const clock = new FakeClock();
+    const tr = new Transport(clock, 0, 10);
+    tr.setLimit(1);
+    tr.play();
+    clock.t += 0.5;
+    expect(tr.time).toBeCloseTo(0.5);
+    expect(tr.holding).toBe(false);
+    clock.t += 3; // la persona tarda 2,5 s en tocar
+    expect(tr.time).toBe(1);
+    expect(tr.holding).toBe(true);
+    tr.setLimit(2);
+    expect(tr.time).toBe(1);
+    clock.t += 0.25;
+    expect(tr.time).toBeCloseTo(1.25);
+    tr.setLimit(Infinity);
+    clock.t += 2;
+    expect(tr.time).toBeCloseTo(3.25);
+  });
+
+  it('nunca retrocede si el límite queda atrás', () => {
+    const clock = new FakeClock();
+    const tr = new Transport(clock, 0, 10);
+    tr.seek(3);
+    tr.play();
+    tr.setLimit(2);
+    clock.t += 1;
+    expect(tr.time).toBe(3);
+  });
+});
+
 describe('NoteScheduler', () => {
   const notes = [note(60, 0), note(64, 0), note(67, 0.5), note(72, 1)];
 
