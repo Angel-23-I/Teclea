@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState, type DragEvent } from 'react';
+import { useRef, useState, type DragEvent } from 'react';
 import { ACCEPTED_EXTENSIONS } from '../core/song/importSong';
 import type { Song } from '../core/song/types';
 import { useLibrary } from '../state/library';
 import { formatTime, shiftedNotesMessage } from './format';
+import { useDialog } from './useDialog';
 
 const SOURCE_LABEL: Record<Song['source'], string> = {
   builtin: 'Incluida',
@@ -13,16 +14,8 @@ const SOURCE_LABEL: Record<Song['source'], string> = {
 export function LibraryDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { songs, currentId, select, importFile } = useLibrary();
   const [dragging, setDragging] = useState(false);
-  const closeRef = useRef<HTMLButtonElement>(null);
+  const closeRef = useDialog(open, onClose);
   const inputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    closeRef.current?.focus();
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [open, onClose]);
 
   if (!open) return null;
 
