@@ -40,7 +40,8 @@ src/
   audio/        sonido de piano (Tone.js)
   playback/     motor que une transporte, programador y sonido
   state/        biblioteca de canciones (Zustand)
-  input/        contrato común para audio, MIDI y teclado del PC
+  input/        entradas de notas: teclado del PC, ratón o táctil y MIDI (Web MIDI),
+                unidas en un centro común; más adelante, el audio del PSR-E283
   ui/           componentes de interfaz
 src-tauri/      envoltorio de escritorio (Rust)
 ```

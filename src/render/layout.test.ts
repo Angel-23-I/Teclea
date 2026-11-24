@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { SongNote } from '../core/song/types';
-import { keyboardLayout, noteRect, stageMetrics, timeToY, visibleRange } from './layout';
+import { keyAt, keyboardLayout, noteRect, stageMetrics, timeToY, visibleRange } from './layout';
 
 const note = (pitch: number, start: number, duration = 0.5): SongNote => ({
   pitch,
@@ -71,5 +71,21 @@ describe('visibleRange', () => {
     const ns = [0, 1, 2, 3, 4, 5, 6, 20].map((t) => note(60, t));
     expect(visibleRange(ns, 3, 2, 1)).toEqual([2, 6]);
     expect(visibleRange(ns, -5, 2)).toEqual([0, 0]);
+  });
+});
+
+describe('keyAt', () => {
+  const keys = keyboardLayout(720);
+  const m = stageMetrics(720, 600, 3); // teclado de y = 480 a 600
+
+  it('da prioridad a las negras en su parte alta y a las blancas abajo', () => {
+    expect(keyAt(20, 500, m, keys)).toBe(37); // Do#2, zona de negras
+    expect(keyAt(20, 590, m, keys)).toBe(38); // Re2: por debajo de las negras
+    expect(keyAt(5, 500, m, keys)).toBe(36); // Do2
+  });
+
+  it('no devuelve tecla fuera del teclado', () => {
+    expect(keyAt(100, 300, m, keys)).toBeNull();
+    expect(keyAt(100, 700, m, keys)).toBeNull();
   });
 });
