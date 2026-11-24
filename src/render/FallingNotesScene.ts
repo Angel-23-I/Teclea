@@ -167,6 +167,7 @@ export class FallingNotesScene {
   private app = new Application();
   private initialized = false;
   private destroyed = false;
+  private resizeObserver: ResizeObserver | null = null;
 
   private lanes = new Graphics();
   private loopBand = new Graphics();
@@ -214,6 +215,10 @@ export class FallingNotesScene {
     }
     this.app.canvas.setAttribute('aria-hidden', 'true');
     el.appendChild(this.app.canvas);
+    // resizeTo solo escucha a la ventana: esto sigue también los cambios del propio escenario
+    // (p. ej. al mostrar la partitura encima).
+    this.resizeObserver = new ResizeObserver(() => this.app.resize());
+    this.resizeObserver.observe(el);
     this.app.stage.addChild(
       this.lanes,
       this.loopBand,
@@ -239,6 +244,7 @@ export class FallingNotesScene {
 
   destroy(): void {
     this.destroyed = true;
+    this.resizeObserver?.disconnect();
     if (this.initialized) this.app.destroy(true, { children: true });
   }
 

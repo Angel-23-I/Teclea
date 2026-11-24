@@ -13,6 +13,7 @@ interface PracticeSettings {
   setHands(h: HandChoice): void;
   /** Guarda la precisión si mejora la anterior; devuelve true solo si supera una marca previa. */
   recordBest(key: string, accuracy: number): boolean;
+  clearBest(): void;
 }
 
 export const usePracticeSettings = create<PracticeSettings>()(
@@ -29,6 +30,7 @@ export const usePracticeSettings = create<PracticeSettings>()(
         set({ best: { ...get().best, [key]: accuracy } });
         return prev != null;
       },
+      clearBest: () => set({ best: {} }),
     }),
     { name: 'teclea-practica' },
   ),

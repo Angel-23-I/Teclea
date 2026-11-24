@@ -41,7 +41,11 @@ src/
   playback/     motor que une transporte, programador y sonido
   core/practice/ sesión de práctica: modos Espera y Ritmo, manos, aciertos, fallos y puntuación
   practice/     controlador que une la práctica con las entradas, el motor y el detector
-  state/        biblioteca de canciones (Zustand)
+  core/sheet/   partitura MusicXML generada a partir de las notas (para canciones MIDI)
+  core/progress/ rachas, días practicados y resumen por canción
+  state/        estado de la app (Zustand): biblioteca, ajustes, práctica y progreso
+  storage/      base de datos local (IndexedDB con Dexie): canciones importadas e historial
+  progress/     contador del tiempo practicado y de las notas acertadas
   input/        entradas de notas: audio del PSR-E283 (cable o micrófono), teclado del PC,
                 ratón o táctil y MIDI (Web MIDI), unidas en un centro común
   audio-detect/ reconocimiento de notas por audio: FFT, espectro en semitonos, huellas de
@@ -57,6 +61,18 @@ src-tauri/      envoltorio de escritorio (Rust)
 - **Escuchar**: la app lo toca todo.
 - Elige qué mano practicas: la otra la toca la app y sus notas se ven tenues. Al terminar verás la
   precisión, las estrellas y si has batido tu marca.
+
+## Biblioteca, progreso y partitura
+
+- Las canciones importadas se guardan en el equipo (IndexedDB) junto con el papel de cada pista, y
+  Teclea abre la última canción que tenías. Se pueden quitar desde la biblioteca.
+- **Progreso** (arriba a la derecha): racha de días, tiempo de hoy y de la semana, gráfica de las dos
+  últimas semanas, mejor y última precisión de cada canción e historial de las últimas veces.
+- **Vista** (barra de reproducción): _Notas_, _Las dos_ o _Partitura_. La partitura usa el MusicXML
+  original si lo importaste; para MIDI se genera una a partir de las notas. Marca el compás que suena y
+  pulsando un compás saltas a él.
+- **Ajustes**: volumen del piano, metrónomo, clics en la cuenta atrás, atajos de teclado y borrar el
+  progreso.
 
 ## Escuchar el PSR-E283 por audio
 

@@ -4,6 +4,7 @@ import { audioInput, inputHub } from '../input/setup';
 import type { NoteEvent } from '../input/types';
 import { engine } from '../playback/usePlayback';
 import { bestKey, usePracticeLive, usePracticeSettings } from '../state/practice';
+import { useProgress } from '../state/progress';
 
 /** Efecto visual de una nota juzgada (chispas, "Perfecto", "Fallo"…), para la escena. */
 export interface PracticeEffect {
@@ -129,6 +130,15 @@ class PracticeController {
       .getState()
       .recordBest(bestKey(song.id, s.mode, s.hands), summary.accuracy);
     usePracticeLive.getState().setSummary({ ...summary, record });
+    void useProgress.getState().addSession({
+      songId: song.id,
+      songTitle: song.title,
+      mode: s.mode,
+      hands: s.hands,
+      speed: engine.speed,
+      ...summary,
+      date: Date.now(),
+    });
   };
 
   private onInput = (e: NoteEvent): void => {

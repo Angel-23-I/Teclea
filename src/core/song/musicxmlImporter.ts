@@ -273,8 +273,8 @@ export function decodeXml(bytes: Uint8Array): string {
   return new TextDecoder('utf-8').decode(bytes);
 }
 
-/** Importa MusicXML comprimido (.mxl), que es un zip con la partitura dentro. */
-export function importMxl(bytes: Uint8Array, fileName: string): Song {
+/** Partitura que hay dentro de un .mxl (un zip con la partitura y un índice). */
+export function mxlScore(bytes: Uint8Array): Uint8Array {
   let files: Record<string, Uint8Array>;
   try {
     files = unzipSync(bytes);
@@ -290,5 +290,10 @@ export function importMxl(bytes: Uint8Array, fileName: string): Song {
   path ??= Object.keys(files).find((f) => !f.startsWith('META-INF/') && /\.(musicxml|xml)$/i.test(f));
   const score = path ? files[path] : undefined;
   if (!score) throw new ImportError('El archivo .mxl no contiene ninguna partitura.');
-  return importMusicXml(decodeXml(score), fileName, bytes);
+  return score;
+}
+
+/** Importa MusicXML comprimido (.mxl), que es un zip con la partitura dentro. */
+export function importMxl(bytes: Uint8Array, fileName: string): Song {
+  return importMusicXml(decodeXml(mxlScore(bytes)), fileName, bytes);
 }

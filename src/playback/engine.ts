@@ -1,6 +1,6 @@
 import type { Instrument } from '../audio/pianoSynth';
 import { activeNotes, type Song, type SongNote } from '../core/song/types';
-import { NoteScheduler } from '../core/transport/scheduler';
+import { NoteScheduler, type NoteSink } from '../core/transport/scheduler';
 import { Transport, type Clock, type LoopRange, type TransportState } from '../core/transport/transport';
 
 /** Segundos de cuenta atrás antes de la primera nota (darán sitio a las notas que caen). */
@@ -41,6 +41,9 @@ export class PlaybackEngine {
   private tickListeners = new Set<(time: number) => void>();
   private jumpListeners = new Set<(time: number, reason: JumpReason) => void>();
   private wasHolding = false;
+  private clicks: SongNote[] = [];
+  private clickSink: NoteSink | null = null;
+  private clickScheduler: NoteScheduler | null = null;
 
   constructor(
     private readonly instrument: Instrument,
@@ -80,6 +83,13 @@ export class PlaybackEngine {
     this.playFilter = filter;
     this.instrument.releaseAll();
     this.rebuildScheduler();
+  }
+
+  /** Clics del metrónomo de la canción actual (vacío = sin metrónomo). */
+  setClicks(clicks: SongNote[], sink: NoteSink): void {
+    this.clicks = clicks;
+    this.clickSink = sink;
+    this.rebuildClicks();
   }
 
   /** Modo espera: la canción no pasa de este segundo hasta que se mueva el límite. */
@@ -134,6 +144,7 @@ export class PlaybackEngine {
     await this.instrument.unlock();
     this.transport.play();
     this.scheduler?.reset(this.transport.time);
+    this.clickScheduler?.reset(this.transport.time);
     this.timer ??= setInterval(this.tick, TICK_MS);
     this.tick();
     this.emit();
@@ -161,6 +172,7 @@ export class PlaybackEngine {
     this.transport.seek(time);
     this.instrument.releaseAll();
     this.scheduler?.reset(this.transport.time);
+    this.clickScheduler?.reset(this.transport.time);
     this.jumped('seek');
     this.emit();
   }
@@ -188,6 +200,12 @@ export class PlaybackEngine {
     this.scheduler.reset(this.transport.time);
   }
 
+  private rebuildClicks(): void {
+    this.clickScheduler =
+      this.clickSink && this.clicks.length ? new NoteScheduler(this.clicks, this.clickSink) : null;
+    this.clickScheduler?.reset(this.transport?.time ?? 0);
+  }
+
   private halt(): void {
     if (this.timer) clearInterval(this.timer);
     this.timer = null;
@@ -203,6 +221,7 @@ export class PlaybackEngine {
       // Desde el inicio del tramo, no desde la posición actual: si no, se pierden las notas
       // que caen justo en el inicio (el salto siempre llega unos milisegundos tarde).
       this.scheduler?.reset(tr.loop?.start ?? tr.time);
+      this.clickScheduler?.reset(tr.loop?.start ?? tr.time);
       this.jumped('loop');
       this.emit();
     } else if (result === 'ended') {
@@ -217,7 +236,9 @@ export class PlaybackEngine {
     }
     // Lo que empieza en el límite (junto a la nota que esperamos) o después aún no suena: sonará
     // a la vez que la toques.
-    this.scheduler?.tick(tr.time, tr.speed, Math.min(tr.loop?.end ?? Infinity, tr.limit - 1e-4));
+    const horizon = Math.min(tr.loop?.end ?? Infinity, tr.limit - 1e-4);
+    this.scheduler?.tick(tr.time, tr.speed, horizon);
+    this.clickScheduler?.tick(tr.time, tr.speed, horizon);
   };
 
   private jumped(reason: JumpReason): void {
