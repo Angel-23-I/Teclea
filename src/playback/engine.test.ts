@@ -116,3 +116,30 @@ describe('PlaybackEngine en modo espera', () => {
     expect(jumps).toEqual([`load@${(-LEAD_IN).toFixed(1)}`, 'seek@2.0']);
   });
 });
+
+describe('PlaybackEngine — metrónomo', () => {
+  let now = 0;
+  const clock = { now: () => now };
+  beforeEach(() => {
+    vi.useFakeTimers();
+    now = 0;
+  });
+  afterEach(() => vi.useRealTimers());
+
+  it('programa los clics aparte de las notas', async () => {
+    const inst = new FakeInstrument();
+    const clicks: SongNote[] = [];
+    const engine = new PlaybackEngine(inst, clock);
+    const song = BUILTIN_SONGS[1]!;
+    engine.load(song);
+    const beats = [-1, -0.5, 0, 0.5].map((start) => ({ ...song.notes[0]!, start, pitch: 0, track: -1 }));
+    engine.setClicks(beats, { scheduleNote: (n) => clicks.push(n) });
+    await engine.play();
+    for (let i = 0; i < 100; i++) {
+      now += 0.025;
+      vi.advanceTimersByTime(25);
+    }
+    expect(clicks.map((c) => c.start)).toEqual([-1, -0.5, 0, 0.5]);
+    expect(inst.played.every((n) => n.track >= 0)).toBe(true);
+  });
+});

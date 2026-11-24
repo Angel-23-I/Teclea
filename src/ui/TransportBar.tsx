@@ -2,7 +2,44 @@ import { MAX_SPEED, MIN_SPEED } from '../core/transport/transport';
 import type { Song } from '../core/song/types';
 import { LEAD_IN } from '../playback/engine';
 import { engine, useFrameValue, usePlaybackState } from '../playback/usePlayback';
+import { useViewSettings, type StageView } from '../state/viewSettings';
 import { formatTime, measureAt } from './format';
+
+const VIEWS: { value: StageView; label: string }[] = [
+  { value: 'notes', label: 'Notas' },
+  { value: 'split', label: 'Las dos' },
+  { value: 'sheet', label: 'Partitura' },
+];
+
+/** Elige qué se ve en el escenario. */
+function ViewToggle() {
+  const view = useViewSettings((v) => v.stageView);
+  const setView = useViewSettings((v) => v.setStageView);
+  return (
+    <div
+      className="flex gap-[3px] rounded-[10px] border border-line bg-panel-2 p-[3px]"
+      role="radiogroup"
+      aria-label="Vista"
+    >
+      {VIEWS.map((o) => (
+        <button
+          key={o.value}
+          type="button"
+          role="radio"
+          aria-checked={view === o.value}
+          onClick={() => setView(o.value)}
+          className={`rounded-[7px] px-2.5 py-1 text-[12.5px] font-medium ${
+            view === o.value
+              ? 'bg-panel-3 text-fg shadow-[inset_0_0_0_1px_#3a4768]'
+              : 'text-muted hover:text-fg'
+          }`}
+        >
+          {o.label}
+        </button>
+      ))}
+    </div>
+  );
+}
 
 function PlayIcon() {
   return (
@@ -86,6 +123,7 @@ export function TransportBar({ song }: { song: Song }) {
         {measure ? `Compás ${measure} de ${song.measures.length}` : 'Cuenta atrás'} ·{' '}
         {song.timeSignature.join('/')}
       </span>
+      <ViewToggle />
     </div>
   );
 }
