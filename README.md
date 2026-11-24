@@ -16,6 +16,12 @@ ordenador también estarán disponibles.
     (el instalador de Rust te lo ofrece).
   - **WebView2**: ya viene con Windows 11.
 
+## Instalar
+
+`npm run tauri build` crea el instalador `Teclea_1.0.0_x64-setup.exe` (en
+`<CARGO_TARGET_DIR>/release/bundle/nsis/`). Cómo instalarlo en otro PC, la primera prueba con el
+PSR-E283 y cómo preparar un PC para desarrollar: [INSTALAR.md](INSTALAR.md).
+
 ## Comandos
 
 ```powershell
@@ -97,6 +103,6 @@ acceso a las aplicaciones de escritorio.
 | 4    | Audio del PSR-E283: cable o micrófono, calibración y detección de notas |
 | 5    | Práctica: modos Espera y Ritmo, manos separadas, puntuación             |
 | 6    | Biblioteca, progreso, vista de partitura, pulido                        |
-| 7    | Instalador para Windows                                                 |
+| 7    | Instalador para Windows (NSIS), seguridad (CSP) y versión 1.0.0         |
 
 El prototipo interactivo de la interfaz está en `teclea-prototipo.html`.

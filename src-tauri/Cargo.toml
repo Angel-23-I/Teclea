@@ -1,6 +1,6 @@
 [package]
 name = "teclea"
-version = "0.1.0"
+version = "1.0.0"
 description = "Teclea: aprende a tocar la organeta con notas que caen"
 authors = []
 license = ""

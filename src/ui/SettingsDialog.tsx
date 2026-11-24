@@ -124,6 +124,7 @@ export function SettingsDialog({ open, onClose }: { open: boolean; onClose: () =
           </div>
         )}
       </Card>
+      <p className="text-center text-[12px] text-muted">Teclea {__APP_VERSION__}</p>
     </Modal>
   );
 }

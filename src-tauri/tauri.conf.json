@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "Teclea",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "identifier": "app.teclea.desktop",
   "build": {
     "frontendDist": "../dist",
@@ -25,12 +25,30 @@
       }
     ],
     "security": {
-      "csp": null
+      "csp": {
+        "default-src": "'self' ipc: http://ipc.localhost",
+        "script-src": "'self' blob:",
+        "worker-src": "'self' blob:",
+        "style-src": "'self' 'unsafe-inline'",
+        "img-src": "'self' data: blob:",
+        "font-src": "'self' data:",
+        "media-src": "'self' blob: mediastream:",
+        "connect-src": "'self' ipc: http://ipc.localhost blob: data:",
+        "object-src": "'none'",
+        "base-uri": "'none'"
+      },
+      "dangerousDisableAssetCspModification": ["style-src"]
     }
   },
   "bundle": {
     "active": true,
-    "targets": ["nsis", "msi"],
+    "targets": ["nsis"],
+    "useLocalToolsDir": true,
+    "publisher": "Teclea",
+    "copyright": "© 2026 Angel Infante",
+    "category": "Education",
+    "shortDescription": "Aprende a tocar tu organeta con notas que caen",
+    "longDescription": "Teclea te enseña canciones en tu teclado de 61 teclas con notas que caen, partitura, modos de práctica y reconocimiento de notas por audio o MIDI.",
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
@@ -38,7 +56,15 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
-    "shortDescription": "Aprende a tocar tu organeta con notas que caen",
-    "category": "Education"
+    "windows": {
+      "webviewInstallMode": { "type": "embedBootstrapper" },
+      "nsis": {
+        "installMode": "currentUser",
+        "languages": ["Spanish"],
+        "displayLanguageSelector": false,
+        "installerIcon": "icons/icon.ico",
+        "startMenuFolder": "Teclea"
+      }
+    }
   }
 }
