@@ -1,4 +1,4 @@
-import { useEffect, useRef, type ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { noteName } from '../core/music/notes';
 import { ALL_DEVICES, type MidiStatus } from '../input/midi';
 import { MAX_PC_OCTAVE, MIN_PC_OCTAVE, pcBasePitch } from '../input/pcKeyboard';
@@ -6,6 +6,9 @@ import { inputHub } from '../input/setup';
 import { useFrameValue } from '../playback/usePlayback';
 import { useInputLive, useInputSettings } from '../state/inputSettings';
 import { useViewSettings } from '../state/viewSettings';
+import { AudioSourcePicker } from './AudioControls';
+import { CalibrationDialog } from './CalibrationDialog';
+import { useDialog } from './useDialog';
 
 function Switch({
   checked,
@@ -78,21 +81,16 @@ function midiMessage(s: MidiStatus, enabled: boolean): string {
 
 export function InputDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   const s = useInputSettings();
-  const { midiStatus, recent } = useInputLive();
+  const midiStatus = useInputLive((l) => l.midiStatus);
+  const recent = useInputLive((l) => l.recent);
   const naming = useViewSettings((v) => (v.noteLabels === 'english' ? 'english' : 'latin'));
-  const closeRef = useRef<HTMLButtonElement>(null);
+  const [calOpen, setCalOpen] = useState(false);
+  const closeRef = useDialog(open, onClose, !calOpen);
+  const audioListening = useInputLive((l) => l.audioStatus.kind === 'listening');
   const pressed = useFrameValue(
     () => [...inputHub.pressed()].sort((a, b) => a - b),
     (p) => p.join(),
   );
-
-  useEffect(() => {
-    if (!open) return;
-    closeRef.current?.focus();
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [open, onClose]);
 
   if (!open) return null;
   const base = pcBasePitch(s.pcOctave);
@@ -123,12 +121,60 @@ export function InputDialog({ open, onClose }: { open: boolean; onClose: () => v
         </header>
 
         <div className="flex flex-col gap-3 overflow-auto p-[18px]">
-          <Card title="Tu Yamaha PSR-E283" badge={<Badge tone="lh">Fase 4</Badge>}>
+          <Card
+            title="Tu Yamaha PSR-E283 (por audio)"
+            badge={audioListening ? <Badge tone="ok">Escuchando</Badge> : null}
+          >
             <p className="text-[12.5px] text-muted">
-              No tiene USB ni MIDI, así que Teclea escuchará su sonido por cable (de PHONES/OUTPUT a la
-              entrada de línea del PC) o por micrófono. Mientras tanto puedes tocar con el ordenador, el ratón
-              o un teclado MIDI.
+              No tiene USB ni MIDI: Teclea reconoce las notas escuchando su sonido, por cable o por micrófono.
             </p>
+            <AudioSourcePicker />
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="sensitivity" className="flex items-center justify-between gap-3">
+                <span>Sensibilidad</span>
+                <output htmlFor="sensitivity" className="font-mono text-[13px] tabular-nums">
+                  {s.sensitivity.toFixed(1).replace('.', ',')}
+                </output>
+              </label>
+              <input
+                id="sensitivity"
+                type="range"
+                min={0.5}
+                max={2}
+                step={0.1}
+                value={s.sensitivity}
+                onChange={(e) => s.setSensitivity(Number(e.target.value))}
+                className="accent-rh"
+              />
+              <p className="text-[12.5px] text-muted">
+                Súbela si no detecta notas suaves; bájala si aparecen notas que no has tocado.
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-line bg-panel p-3">
+              <p className="min-w-0 text-[12.5px]">
+                {s.calibration?.date ? (
+                  <>
+                    <span className="text-ok">Calibrado</span>{' '}
+                    <span className="text-muted">
+                      el {new Date(s.calibration.date).toLocaleDateString('es')} ·{' '}
+                      {Object.keys(s.calibration.templates).length} huellas · La4{' '}
+                      {s.calibration.a4.toFixed(1).replace('.', ',')} Hz · {s.calibration.latencyMs} ms
+                    </span>
+                  </>
+                ) : (
+                  <span className="text-muted">
+                    Sin calibrar: usa huellas genéricas. Calibrar mejora mucho los acordes y las octavas.
+                  </span>
+                )}
+              </p>
+              <button
+                type="button"
+                onClick={() => setCalOpen(true)}
+                className="rounded-[9px] bg-rh px-3 py-[7px] text-[13px] font-semibold text-[#1b1206] hover:bg-[#f6b476]"
+              >
+                {s.calibration?.date ? 'Volver a calibrar' : 'Calibrar'}
+              </button>
+            </div>
           </Card>
 
           <Card title="Teclado del ordenador" badge={s.pcKeyboard ? <Badge tone="ok">Activo</Badge> : null}>
@@ -243,6 +289,7 @@ export function InputDialog({ open, onClose }: { open: boolean; onClose: () => v
           </div>
         </div>
       </div>
+      <CalibrationDialog open={calOpen} onClose={() => setCalOpen(false)} />
     </>
   );
 }

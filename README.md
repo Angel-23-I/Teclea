@@ -40,11 +40,25 @@ src/
   audio/        sonido de piano (Tone.js)
   playback/     motor que une transporte, programador y sonido
   state/        biblioteca de canciones (Zustand)
-  input/        entradas de notas: teclado del PC, ratón o táctil y MIDI (Web MIDI),
-                unidas en un centro común; más adelante, el audio del PSR-E283
+  input/        entradas de notas: audio del PSR-E283 (cable o micrófono), teclado del PC,
+                ratón o táctil y MIDI (Web MIDI), unidas en un centro común
+  audio-detect/ reconocimiento de notas por audio: FFT, espectro en semitonos, huellas de
+                cada tecla, separación de acordes (NMF), detector y calibración
   ui/           componentes de interfaz
 src-tauri/      envoltorio de escritorio (Rust)
 ```
+
+## Escuchar el PSR-E283 por audio
+
+1. Conecta la salida **PHONES/OUTPUT** del teclado a la entrada de línea (o de micrófono) del PC con
+   un cable jack 6,3 mm → 3,5 mm. También vale un micrófono, aunque es menos fiable.
+2. En Teclea: **Entrada** (arriba a la derecha) → _Tu Yamaha PSR-E283_ → activa «Escuchar mi teclado
+   por audio» y elige la entrada.
+3. Pulsa **Calibrar**: mide el ruido, la afinación, la huella de cada tecla (21 o 61) y la latencia.
+   Sin calibrar funciona con huellas genéricas, pero falla más en acordes con octavas.
+
+Si Windows no deja usar el audio: _Configuración › Privacidad y seguridad › Micrófono_ y permite el
+acceso a las aplicaciones de escritorio.
 
 ## Plan de trabajo
 
