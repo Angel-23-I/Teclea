@@ -36,6 +36,7 @@ src/
   core/song/    modelo de canción, importadores MIDI y MusicXML (.musicxml/.xml/.mxl),
                 ajuste al rango del teclado y canciones de ejemplo
   core/transport/ reloj de reproducción (velocidad, saltos, bucle) y programador de notas
+  render/       notas que caen sobre el teclado (PixiJS / WebGL) y su geometría
   audio/        sonido de piano (Tone.js)
   playback/     motor que une transporte, programador y sonido
   state/        biblioteca de canciones (Zustand)
