@@ -21,6 +21,7 @@
     "@tauri-apps/api": "^2.12.5",
     "@tonejs/midi": "^2.0.28",
     "fflate": "^0.8.3",
+    "pixi.js": "^8.23.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "tone": "^15.1.22",
