@@ -1,0 +1,17 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "low-contrast",
+        "value": "*",
+        "files": [
+          "teclea-prototipo.html"
+        ],
+        "createdAt": "2026-11-24T03:32:08.499Z",
+        "reason": "Claude: falso positivo del análisis estático (no resuelve button{color:inherit} ni el fondo oscuro del body); verificado en el navegador que el texto es claro sobre fondo oscuro"
+      }
+    ]
+  }
+}

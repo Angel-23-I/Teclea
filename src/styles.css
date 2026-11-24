@@ -1,0 +1,52 @@
+@import 'tailwindcss';
+@import '@fontsource-variable/inter';
+@import '@fontsource-variable/bricolage-grotesque';
+@import '@fontsource/ibm-plex-mono/400.css';
+@import '@fontsource/ibm-plex-mono/500.css';
+
+/* Tokens de Teclea: tema oscuro de práctica, naranja = mano derecha, azul = mano izquierda. */
+@theme {
+  --color-ink: #0a0e18;
+  --color-stage: #070a12;
+  --color-panel: #111726;
+  --color-panel-2: #171f33;
+  --color-panel-3: #222c45;
+  --color-line: #26304a;
+  --color-fg: #e9edf6;
+  --color-muted: #8b95ae;
+  --color-rh: #f3a35b;
+  --color-lh: #5bb8ea;
+  --color-ok: #62d892;
+  --color-bad: #f2656f;
+  --color-key-white: #eef1f7;
+  --color-key-black: #151a27;
+
+  --font-display: 'Bricolage Grotesque Variable', 'Segoe UI', system-ui, sans-serif;
+  --font-sans: 'Inter Variable', 'Segoe UI', system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, Consolas, monospace;
+}
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--color-ink);
+  color: var(--color-fg);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-rh);
+  outline-offset: 2px;
+}
