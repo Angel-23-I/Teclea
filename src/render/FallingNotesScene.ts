@@ -23,6 +23,10 @@ export interface SceneInput {
   loop: LoopRange | null;
   /** Teclas iluminadas ahora mismo y la mano que las toca. */
   litKeys: ReadonlyMap<number, Hand>;
+  /** Teclas que la persona está pulsando (teclado del PC, ratón, MIDI…). */
+  pressedKeys: ReadonlySet<number>;
+  /** Letra del ordenador para cada nota, o null para no mostrarlas. */
+  pcKeyLabels: ReadonlyMap<number, string> | null;
   noteLabels: NoteLabels;
   showFingers: boolean;
   lookahead: number;
@@ -39,6 +43,7 @@ const C = {
   fg: 0xe9edf6,
   ink: 0x0a0e18,
   noteText: 0x1a140c,
+  pressed: 0xf6d1a6,
 };
 const handColor = (h: Hand) => (h === 'left' ? C.lh : C.rh);
 
@@ -196,7 +201,8 @@ export class FallingNotesScene {
   private frame = (): void => {
     const input = this.getInput();
     const { width, height } = this.app.screen;
-    const layoutKey = `${width}x${height}|${input.lookahead}|${input.noteLabels}`;
+    const pcKeys = input.pcKeyLabels ? [...input.pcKeyLabels].join() : '';
+    const layoutKey = `${width}x${height}|${input.lookahead}|${input.noteLabels}|${pcKeys}`;
     if (layoutKey !== this.layoutKey) {
       this.layoutKey = layoutKey;
       this.metrics = stageMetrics(width, height, input.lookahead);
@@ -260,6 +266,25 @@ export class FallingNotesScene {
         this.keyText.addChild(onKey);
       }
     }
+
+    // Letra del ordenador que toca cada nota.
+    if (input.pcKeyLabels) {
+      for (const [pitch, letter] of input.pcKeyLabels) {
+        const k = keys[pitch];
+        if (!k || k.width < (k.black ? 8 : 11)) continue;
+        const size = Math.min(11, k.width * (k.black ? 0.55 : 0.42));
+        const t = new BitmapText({ text: letter, style: { fontFamily: LABEL_FONT, fontSize: size } });
+        t.anchor.set(0.5, 1);
+        if (k.black) {
+          t.tint = 0xc6ccda;
+          t.position.set(k.x + k.width / 2, m.hitY + m.keyboardHeight * BLACK_KEY_HEIGHT - 8);
+        } else {
+          t.tint = 0x3d4660;
+          t.position.set(k.x + k.width / 2, m.hitY + m.keyboardHeight - (pitch % 12 === 0 ? 20 : 6));
+        }
+        this.keyText.addChild(t);
+      }
+    }
   }
 
   private drawMeasures(input: SceneInput, m: StageMetrics): void {
@@ -321,7 +346,7 @@ export class FallingNotesScene {
 
   /** Teclado con las teclas iluminadas; solo se redibuja cuando cambian. */
   private drawKeyboardState(input: SceneInput, m: StageMetrics): void {
-    const key = [...input.litKeys].map(([p, h]) => p + h).join();
+    const key = [...input.litKeys].map(([p, h]) => p + h).join() + '|' + [...input.pressedKeys].join();
     if (key === this.keyboardKey) return;
     this.keyboardKey = key;
     const g = this.keyboard.clear();
@@ -332,17 +357,22 @@ export class FallingNotesScene {
     for (const k of this.keys) {
       if (!k || k.black) continue;
       const lit = input.litKeys.get(k.pitch);
+      const pressed = input.pressedKeys.has(k.pitch);
       g.roundRect(k.x + 0.5, y, k.width - 1, h - 2, 4).fill({
-        color: lit ? lighten(handColor(lit), 0.15) : C.keyWhite,
+        color: pressed ? C.pressed : lit ? lighten(handColor(lit), 0.15) : C.keyWhite,
       });
       g.rect(k.x + 0.5, y, k.width - 1, 6).fill({ color: 0x000000, alpha: 0.18 });
-      if (!lit) g.rect(k.x + 0.5, y + h - 8, k.width - 1, 6).fill({ color: C.keyWhiteEdge, alpha: 0.5 });
+      if (!lit && !pressed)
+        g.rect(k.x + 0.5, y + h - 8, k.width - 1, 6).fill({ color: C.keyWhiteEdge, alpha: 0.5 });
     }
     for (const k of this.keys) {
       if (!k || !k.black) continue;
       const lit = input.litKeys.get(k.pitch);
-      g.roundRect(k.x, y - 1, k.width, bh, 3).fill({ color: lit ? handColor(lit) : C.keyBlack });
-      if (!lit) g.rect(k.x + 2, y + bh - 9, k.width - 4, 6).fill({ color: C.keyBlackTop });
+      const pressed = input.pressedKeys.has(k.pitch);
+      g.roundRect(k.x, y - 1, k.width, bh, 3).fill({
+        color: pressed ? C.pressed : lit ? handColor(lit) : C.keyBlack,
+      });
+      if (!lit && !pressed) g.rect(k.x + 2, y + bh - 9, k.width - 4, 6).fill({ color: C.keyBlackTop });
     }
     // Brillo sobre la línea encima de cada tecla que suena.
     for (const [pitch, hand] of input.litKeys) {

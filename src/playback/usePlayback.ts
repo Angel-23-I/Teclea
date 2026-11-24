@@ -2,8 +2,11 @@ import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { PianoSynth } from '../audio/pianoSynth';
 import { PlaybackEngine, type PlaybackSnapshot } from './engine';
 
+/** Sonido de piano único: lo usan la canción y las notas que toca la persona. */
+export const piano = new PianoSynth();
+
 /** Motor único de la app. */
-export const engine = new PlaybackEngine(new PianoSynth());
+export const engine = new PlaybackEngine(piano);
 
 export function usePlaybackState(): PlaybackSnapshot {
   return useSyncExternalStore(engine.subscribe, engine.getSnapshot);

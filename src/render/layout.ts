@@ -83,6 +83,17 @@ export function noteRect(note: SongNote, now: number, m: StageMetrics, keys: Key
   };
 }
 
+/** Tecla bajo un punto del escenario (las negras tienen prioridad en su zona), o null. */
+export function keyAt(x: number, y: number, m: StageMetrics, keys: KeyRect[]): number | null {
+  if (y < m.hitY || y > m.hitY + m.keyboardHeight) return null;
+  const inside = (k: KeyRect | undefined) => !!k && x >= k.x && x < k.x + k.width;
+  if (y < m.hitY + m.keyboardHeight * BLACK_KEY_HEIGHT) {
+    for (const k of keys) if (k?.black && inside(k)) return k.pitch;
+  }
+  for (const k of keys) if (k && !k.black && inside(k)) return k.pitch;
+  return null;
+}
+
 /**
  * Índices [desde, hasta) de las notas que pueden verse entre `now - maxDuration` y `now + lookahead`.
  * Las notas deben estar ordenadas por inicio.
